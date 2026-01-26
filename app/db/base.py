@@ -1,22 +1,16 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from sqlalchemy import exc
+
+from fastapi import FastAPI
+from sqlalchemy import exc, text
 from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
-from core.config import Settings, settings
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
-from sqlalchemy import exc
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
     AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
 )
-from core.config import settings
+
+from app.core.config import settings
 
 
 # create engine
@@ -65,6 +59,18 @@ class DatabaseSessionManager:
             finally:
                 await session.close()
 
+    async def health_check(self) -> bool:
+        """Check database connection health."""
+        if not self._engine:
+            return False
+
+        try:
+            async with self.session() as session:
+                result = await session.execute(text("SELECT 1"))
+                return result.scalar() == 1
+        except Exception as e:
+            return False
+
     # Dependency
     async def get_db(self) -> AsyncGenerator[AsyncSession, None]:
         async with self.session() as session:
@@ -72,4 +78,26 @@ class DatabaseSessionManager:
 
 
 session_manager = DatabaseSessionManager()
-session_manager.init(Settings.DATABASE_URL)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """
+    FastAPI lifespan - Initialize and cleanup database here.
+    """
+    # Startup: Initialize database
+    print("🚀 Starting application...")
+
+    # Initialize database with settings
+    session_manager.init(database_url=settings.database_url)
+
+    # Health check
+    if await session_manager.health_check():
+        print("✅ Database connected")
+    else:
+        print("❌ Database connection failed")
+    yield
+
+    # Shutdown: Cleanup database
+    print("🛑 Shutting down...")
+    await session_manager.close()
