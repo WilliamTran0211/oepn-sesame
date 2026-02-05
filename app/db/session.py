@@ -1,9 +1,10 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import AsyncIterator
 
-from fastapi import FastAPI
 from sqlalchemy import exc, text
 from sqlalchemy.ext.asyncio import (
+    AsyncConnection,
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
@@ -45,6 +46,18 @@ class DatabaseSessionManager:
         self._sessionmaker = None
 
     @asynccontextmanager
+    async def connect(self) -> AsyncIterator[AsyncConnection]:
+        if self._engine is None:
+            raise Exception("DatabaseSessionManager is not initialized")
+
+        async with self._engine.begin() as connection:
+            try:
+                yield connection
+            except Exception:
+                await connection.rollback()
+                raise
+
+    @asynccontextmanager
     async def session(self) -> AsyncGenerator[AsyncSession, None]:
         if self._sessionmaker is None:
             raise IOError("DatabaseSessionManager is not initialized")
@@ -78,26 +91,3 @@ class DatabaseSessionManager:
 
 
 session_manager = DatabaseSessionManager()
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """
-    FastAPI lifespan - Initialize and cleanup database here.
-    """
-    # Startup: Initialize database
-    print("🚀 Starting application...")
-
-    # Initialize database with settings
-    session_manager.init(database_url=settings.database_url)
-
-    # Health check
-    if await session_manager.health_check():
-        print("✅ Database connected")
-    else:
-        print("❌ Database connection failed")
-    yield
-
-    # Shutdown: Cleanup database
-    print("🛑 Shutting down...")
-    await session_manager.close()

@@ -1,7 +1,7 @@
 # Global instance
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
-from .base import session_manager
+from .session import session_manager
 
 
 # Dependency function

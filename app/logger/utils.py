@@ -1,7 +1,7 @@
 import logging
 import traceback
 from httpx import Request
-from app.models.request import ErrorLog, RequestInfo, RequestLog, RequestLog
+from app.schemas.request import ErrorLog, RequestInfo, RequestLog, RequestLog
 
 logger = logging.getLogger("open_sesame_logger")
 
