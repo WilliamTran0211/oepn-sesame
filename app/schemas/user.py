@@ -42,3 +42,10 @@ class UserSchemaCreate(UserSchemaBase):
 
     class Config:
         from_attributes = True
+
+
+class UserUpdateSchema(UserSchemaBase):
+    """Schema for update user"""
+    
+    class Config:
+        from_attributes = True
