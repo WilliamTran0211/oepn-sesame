@@ -1,13 +1,17 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime, Index, String, func, select
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.models.authorization_code import AuthorizationCode
 from app.models.base import Base, TimestampMixin, UUIDMixin
+from app.models.client import OAuthClient
+from app.models.refresh_token import RefreshToken
+from app.models.user_session import UserSession
 
 
 class User(UUIDMixin, TimestampMixin, Base):
@@ -29,6 +33,19 @@ class User(UUIDMixin, TimestampMixin, Base):
         default=False,
         nullable=False,
         comment="Platform-level admin. NOT an OAuth scope.",
+    )
+
+    owned_clients: Mapped[List["OAuthClient"]] = relationship(
+        "OAuthClient", back_populates="owner", cascade="all, delete-orphan"
+    )
+    authorization_codes: Mapped[List["AuthorizationCode"]] = relationship(
+        "AuthorizationCode", back_populates="user", cascade="all, delete-orphan"
+    )
+    refresh_tokens: Mapped[List["RefreshToken"]] = relationship(
+        "RefreshToken", back_populates="user", cascade="all, delete-orphan"
+    )
+    sessions: Mapped[List["UserSession"]] = relationship(
+        "UserSession", back_populates="user", cascade="all, delete-orphan"
     )
 
     __table_args__ = (
