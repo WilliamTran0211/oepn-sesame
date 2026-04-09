@@ -1,6 +1,9 @@
-from typing import Any, Dict, Generic, TypeVar, Type, List, Optional
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
+from uuid import UUID
+
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+
 from app.db.session import Base
 
 ModelType = TypeVar("ModelType", bound=Base)
@@ -15,44 +18,47 @@ class BaseRepository(Generic[ModelType]):
         result = await self.db.execute(select(self.model).filter(self.model.id == id))
         return result.scalar_one_or_none()
 
-    async def get_by_ids(self, ids: List[int]) -> List[ModelType]:
-        return []
-
-    async def get_all(self, skip: int = 0, limit: int = 100) -> List[ModelType]:
-        result = await self.db.execute(select(self.model).offset(skip).limit(limit))
-        return result.scalars().all()
-
-    async def get_pagination(
+    async def get_all(
         self,
         skip: int = 0,
         limit: int = 100,
         filters: Optional[Dict[str, Any]] = None,
         order_by: Optional[str] = None,
-        descending: bool = False,
     ) -> List[ModelType]:
-        return []
+        query = select(self.model)
 
-    async def create(self, obj: ModelType) -> ModelType:
-        self.db.add(obj)
-        await self.db.commit()
-        await self.db.refresh(obj)
-        return obj
+        if filters:
+            for field, value in filters.items():
+                if hasattr(self.model, field):
+                    query = query.where(getattr(self.model, field) == value)
 
-    async def update(self, obj: ModelType) -> ModelType:
-        await self.db.commit()
-        await self.db.refresh(obj)
-        return obj
+        if order_by and hasattr(self.model, order_by):
+            query = query.order_by(getattr(self.model, order_by))
 
-    async def delete(self, obj: ModelType) -> None:
-        # soft delete here
-        return None
+        query = query.offset(skip).limit(limit)
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
 
-    async def search(
-        self,
-        search_term: str,
-        search_fields: List[str],
-        skip: int = 0,
-        limit: int = 100,
-    ) -> List[ModelType]:
-        # implement search
-        return []
+    async def create(self, **kwargs) -> ModelType:
+        instance = self.model(**kwargs)
+        self.db.add(instance)
+        await self.db.flush()
+        return instance
+
+    async def update(self, id: UUID, **kwargs) -> Optional[ModelType]:
+        """Update record."""
+        query = (
+            update(self.model)
+            .where(self.model.id == id)
+            .values(**kwargs)
+            .returning(self.model)
+        )
+        result = await self.db.execute(query)
+        await self.db.flush()
+        return result.scalar_one_or_none()
+
+    async def delete(self, id: UUID) -> bool:
+        query = delete(self.model).where(self.model.id == id)
+        result = await self.db.execute(query)
+        await self.db.flush()
+        return result.rowcount > 0
