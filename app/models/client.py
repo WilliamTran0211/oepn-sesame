@@ -1,13 +1,15 @@
 import uuid
 from typing import TYPE_CHECKING, List, Optional
-from unittest.mock import Base
 from uuid import UUID
 
 from sqlalchemy import ARRAY, Boolean, Enum, ForeignKey, Index, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.enum import ClientType
+from app.models.authorization_code import AuthorizationCode
 from app.models.base import Base, TimestampMixin, UUIDMixin
+from app.models.refresh_token import RefreshToken
+from app.models.user import User
 
 
 class OAuthClient(UUIDMixin, TimestampMixin, Base):
@@ -50,3 +52,22 @@ class OAuthClient(UUIDMixin, TimestampMixin, Base):
         nullable=True,
         index=True,
     )
+
+    owner: Mapped[Optional["User"]] = relationship(
+        "User", back_populates="owned_clients"
+    )
+    authorization_codes: Mapped[List["AuthorizationCode"]] = relationship(
+        "AuthorizationCode",
+        back_populates="client",
+        cascade="all, delete-orphan",
+    )
+    refresh_tokens: Mapped[List["RefreshToken"]] = relationship(
+        "RefreshToken",
+        back_populates="client",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (Index("ix_oauth_clients_client_id", "client_id"),)
+
+    def __repr__(self) -> str:
+        return f"<OAuthClient id={self.id} name={self.name!r} type={self.client_type}>"
