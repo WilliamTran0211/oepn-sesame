@@ -1,15 +1,17 @@
 import uuid
 from typing import TYPE_CHECKING, List, Optional
-from uuid import UUID
 
 from sqlalchemy import ARRAY, Boolean, Enum, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.common.enum import ClientType
 from app.models.authorization_code import AuthorizationCode
 from app.models.base import Base, TimestampMixin, UUIDMixin
 from app.models.refresh_token import RefreshToken
-from app.models.user import User
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class OAuthClient(UUIDMixin, TimestampMixin, Base):
