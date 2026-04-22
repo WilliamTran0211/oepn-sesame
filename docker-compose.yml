@@ -1,28 +1,59 @@
-services:
+version: '3.8'
+services: 
   db:
-    image: postgres:15
+    image: postgres:16-alpine
+    container_name: open-sesame-db
+    restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: '1.5'
     volumes:
       - postgres_data:/var/lib/postgresql/data
-
+    healthcheck:
+          test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${DB_NAME}"]
+          interval: 5s
+          timeout: 5s
+          retries: 5
+  
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
+    container_name: open-sesame-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --save "" --appendonly no --maxmemory 32mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.2'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5  
+      
 
   auth-service:
     build: .
     command: gunicorn -w 4 -k uvicorn.workers.UvicornWorker app.main:app --bind 0.0.0.0:8000
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     env_file:
       - .env
 
-  nginx:
-    image: nginx:latest
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-    depends_on:
-      - auth-service
+volumes:
+  postgres_data:
+  redis_data:
