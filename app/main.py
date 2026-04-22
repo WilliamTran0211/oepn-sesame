@@ -7,49 +7,45 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import get_settings
+from app.core.exception import register_exception_handlers
 from app.db.session import session_manager
 from app.logger.config import LOGGING_CONFIG
 from app.middleware.logging import LoggingMiddleware
 
+logging.config.dictConfig(LOGGING_CONFIG)
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """
-    FastAPI lifespan - Initialize and cleanup database.
-    """
-    # Startup
-    print("🚀 Starting application...")
+    print("Starting application...")
 
     settings = get_settings()
-
-    # Initialize database
     session_manager.init(database_url=settings.database_url)
 
-    # Health check
     if await session_manager.health_check():
-        print("✅ Database connected successfully")
+        print("Database connected")
     else:
-        print("❌ Database connection failed!")
+        print("Database connection failed")
+        raise RuntimeError("Cannot connect to database")
+    yield
 
-    yield  # App runs here
-
-    # Shutdown
-    print("🛑 Shutting down application...")
     await session_manager.close()
-    print("✅ Database connections closed")
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="OS - Open Sesame", version="0.0.1", lifespan=lifespan)
 
+    register_exception_handlers(app)
+
     logging.config.dictConfig(LOGGING_CONFIG)
 
-    # Custom middleware
+    # middleware
     app.add_middleware(
         LoggingMiddleware,
     )
 
-    # CORS (Cross-Origin Resource Sharing) middleware configuration
+    # CORS
     origins = [
         "http://localhost",
         "http://localhost:8080",
@@ -65,8 +61,12 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Include routers
+    # routers
     app.include_router(api_router, prefix="/api/v1")
+
+    @app.get("/health")
+    async def health_check() -> dict:
+        return {"status": "ok"}
 
     return app
 
