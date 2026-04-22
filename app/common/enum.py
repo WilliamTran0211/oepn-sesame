@@ -22,3 +22,9 @@ class Gender(str, enum.Enum):
     MALE = "male"
     FEMALE = "female"
     OTHER = "other"
+
+
+class VerificationPurpose(str, enum.Enum):
+    EMAIL_VERIFY = "email_verify"
+    PASSWORD_RESET = "password_reset"
+    TWO_FACTOR_AUTH = "two_factor_auth"
