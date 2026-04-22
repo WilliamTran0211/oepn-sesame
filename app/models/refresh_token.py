@@ -75,6 +75,7 @@ class RefreshToken(UUIDMixin, TimestampMixin, Base):
         "RefreshToken",
         foreign_keys=[parent_id],
         backref="parent",
+        remote_side="RefreshToken.id",
     )
 
     __table_args__ = (
