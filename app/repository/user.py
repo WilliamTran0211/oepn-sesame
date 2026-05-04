@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import Select, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
@@ -12,8 +12,10 @@ class UserRepository(BaseRepository[User]):
     def __init__(self, db: AsyncSession):
         super().__init__(User, db)
 
-    def get_by_email(self, email: str) -> Optional[User]:
-        return self.db.query(User).filter(User.email == email).first()
+    async def get_by_email(self, email: str) -> Optional[User]:
+        query = Select(User).where(User.email == email)
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
 
     async def get_active_users(self, skip: int = 0, limit: int = 100) -> List[User]:
         return await self.get_all(skip=skip, limit=limit, filters={"is_active": True})

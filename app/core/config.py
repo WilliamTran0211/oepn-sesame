@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # OPTIONAL SETTINGS
     DEBUG: bool = False
 
+    # SESSION
+    SESSION_EXPIRE_DAYS: int = 7  # days
+
     @property
     def database_url(self) -> str:
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"

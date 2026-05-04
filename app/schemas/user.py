@@ -1,7 +1,25 @@
 import re
+import uuid
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+
+
+class UserSchemaBase(BaseModel):
+    email: str | None = None
+    full_name: str | None = None
+
+
+class UserResponseSchema(BaseModel):
+    id: uuid.UUID
+    email: EmailStr
+    full_name: Optional[str]
+    is_active: bool
+    is_verified: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class UserLogin(BaseModel):
@@ -9,7 +27,7 @@ class UserLogin(BaseModel):
     password: str = Field(..., description="Password for login")
 
 
-class UserRegistration(BaseModel):
+class CreateUserSchema(BaseModel):
     email: EmailStr = Field(
         ..., description="Valid email address", examples=["user@company.com"]
     )
@@ -19,7 +37,7 @@ class UserRegistration(BaseModel):
         max_length=100,
         description="Password must be 8-100 characters",
     )
-    is_active: bool = Field(default=True)
+    full_name: Optional[str] = Field(default=None, max_length=255)
 
     @field_validator("password")
     def validate_password_complexity(cls, v):
@@ -30,22 +48,5 @@ class UserRegistration(BaseModel):
         return v
 
 
-class UserSchemaBase(BaseModel):
-    email: str | None = None
-    full_name: str | None = None
-
-
-class UserSchemaCreate(UserSchemaBase):
-    """Schema for creating a user"""
-
-    id: str = Field(..., description="Unique user identifier")
-
-    class Config:
-        from_attributes = True
-
-
-class UserUpdateSchema(UserSchemaBase):
-    """Schema for update user"""
-    
-    class Config:
-        from_attributes = True
+class UpdateUserSchema(BaseModel):
+    full_name: Optional[str] = Field(default=None, max_length=255)

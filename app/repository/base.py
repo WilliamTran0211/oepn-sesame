@@ -14,7 +14,7 @@ class BaseRepository(Generic[ModelType]):
         self.model = model
         self.db = db
 
-    async def get(self, id: int) -> Optional[ModelType]:
+    async def get(self, id: str) -> Optional[ModelType]:
         result = await self.db.execute(select(self.model).filter(self.model.id == id))
         return result.scalar_one_or_none()
 
